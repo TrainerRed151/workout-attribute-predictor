@@ -10,8 +10,8 @@ from sklearn.utils import shuffle
 predict_file = 'test.gpx'
 out_file = 'test2.gpx'
 
-directory_in_str = 'rides/'
-#directory_in_str = 'runs/'
+#directory_in_str = 'rides/'
+directory_in_str = 'runs/'
 directory = os.fsencode(directory_in_str)
 lat_long_str = '<trkpt lat="{}" lon="{}">'
 ele_str = '<ele>{}</ele>'
@@ -70,7 +70,9 @@ def get_Xy(points, training=False):
             speed = 0
             dist = 0
             time = 0
+            ev_change = 0
         else:
+            ev_change = points[i]['ele'] - points[i-1]['ele']
             grade = 0
             for j in range(max(i-10, 0), i):
                 grade += (points[i]['ele'] - points[j]['ele'])
@@ -80,9 +82,9 @@ def get_Xy(points, training=False):
             speed = dist/time
 
         total_time += time
-        elevation_gain += max(grade, 0)
+        elevation_gain += max(ev_change, 0)
 
-        X.append([total_time, elevation_gain, speed, grade])
+        X.append([total_time, elevation_gain, speed, grade, ev_change])
         if training:
             y.append(points[i]['hr'])
         else:
@@ -130,15 +132,16 @@ def main():
         X.extend(Xtemp)
         y.extend(ytemp)
 
-    #X, y = shuffle(X, y, random_state=0)
+    X, y = shuffle(X, y, random_state=0)
     regr = RandomForestRegressor(random_state=0, n_estimators=100)
+    print(cross_val_score(regr, X, y, cv=5))
     regr.fit(X, y)
     print(regr.feature_importances_)
-    #print(cross_val_score(regr, X, y, cv=5))
 
     points = get_points(predict_file)
     X2, time_list = get_Xy(points)
     y2 = regr.predict(X2)
+    print(f"{min(y2)} -- {sum(y2)/len(y2)} -- {max(y2)}")
 
     create_file(out_file, predict_file, y, time_list)
 
